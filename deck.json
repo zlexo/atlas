@@ -1,0 +1,15 @@
+{
+  "id": "atlas",
+  "name": "Atlas",
+  "description": "An index of your vault: search, maps by tag, a report of duplicate notes, and a red banner when anything is stale.",
+  "cmd": ["node", "src/cli.js", "serve"],
+  "cwd": "{app}",
+  "url": "http://127.0.0.1:{port}/",
+  "portKey": "port",
+  "config": {
+    "port": { "type": "number", "flag": "--port", "default": 4317 }
+  },
+  "vault": true,
+  "data": true,
+  "status": "/status-line"
+}
