@@ -7,8 +7,14 @@ import { loadConfig, addFolder } from '../src/config.js';
 
 const FIXTURES = new URL('../fixtures/', import.meta.url).pathname;
 
+// Every folder made here goes when the test process exits, also when a test
+// fails before its own cleanup() or never calls it.
+const made = [];
+process.once('exit', () => { for (const d of made) rmSync(d, { recursive: true, force: true }); });
+
 export function fixture({ folder = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-test-'));
+  made.push(dir);
   const vault = join(dir, 'garden'), catalog = join(dir, 'seed-catalog'), data = join(dir, 'data');
   cpSync(join(FIXTURES, 'garden'), vault, { recursive: true });
   cpSync(join(FIXTURES, 'seed-catalog'), catalog, { recursive: true });
