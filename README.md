@@ -23,10 +23,18 @@ page says so in red.
   not.
 - **Writes maps by tag** into the vault's `Maps/Generated/`: one note per tag
   that sits on at least three notes (and on at most 85% of them), plus a front
-  door that links them. Every generated file carries a marker; a file in that
-  folder without it is yours and is never removed or overwritten. Atlas writes
-  nowhere else in the vault, and refuses a `Maps/Generated` that resolves
-  outside it.
+  door that links them. Tags come from the frontmatter `tags:` field only
+  (`tags: [herbs, project/active]`); `#tags` written in the body are not
+  indexed. A leading `#` in the field is dropped. A nested tag gets a flat
+  name: `project/active` is mapped in `Project - Active Map.md`. Characters
+  that are not safe in a file name become spaces, and two tags that would
+  share a name get a number.
+- **Leaves your files alone.** Every generated file carries a marker. Anything
+  else in that folder (a file without the marker, a symlink, a folder) is
+  yours: never removed, overwritten or written through. Atlas writes nowhere
+  else in the vault, and refuses a `Maps/Generated` that resolves outside it.
+  A map that cannot be written is listed in the front door and the status, and
+  the others are still written.
 - **Reports duplicates** in `Maps/Generated/Duplicates.md`: identical notes,
   and near copies with their score (8-word shingle Jaccard of 0.82 or more,
   over notes of 120 words or more). Merge them, or make one point at the other.
@@ -63,7 +71,7 @@ node src/cli.js add ~/code/some-repo --data ~/.local/share/atlas      # index it
 ```
 
 `--vault` and `--data` win over `DECK_VAULT` and `DECK_APP_DATA`. `serve`
-takes `--port` and `--no-map-sweep` (leave the vault untouched; the status
+listens on `127.0.0.1:4317` by default and takes `--port` and `--no-map-sweep` (leave the vault untouched; the status
 still says when the maps are out of date).
 
 ## Where it reads and writes
