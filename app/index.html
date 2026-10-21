@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="shell">
+  <aside id="rail">
+    <div class="brand"><span class="mark"></span><span class="name">Atlas</span></div>
+    <div id="fresh"></div>
+    <nav id="nav"></nav>
+    <div class="railfoot" id="built"></div>
+  </aside>
+  <main id="main">
+    <div id="stale" role="alert" hidden></div>
+    <header id="bar">
+      <input id="q" type="search" placeholder="Search the notes" autocomplete="off" spellcheck="false" aria-label="Search">
+      <kbd>/</kbd>
+    </header>
+    <div id="view"></div>
+  </main>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

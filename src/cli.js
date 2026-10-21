@@ -11,12 +11,16 @@ const opt = n => {
   return i >= 0 && args[i + 1] !== undefined && !args[i + 1].startsWith('--') ? args[i + 1] : undefined;
 };
 
+const PORT = 4317;
+
 const USAGE = `usage: atlas <command> [--data <dir>] [--vault <dir>]
 
   build             index the vault and the added folders into the data folder
   status            the index against its inputs; exit 1 when anything is stale
   moc [--dry-run]   maps by tag and the duplicates report, into <vault>/Maps/Generated
   add <folder>      index a folder too (its README.md and docs/)
+  serve [--port ${PORT}] [--no-map-sweep]
+                    the app on this machine only; rebuilds on read
 
 The data folder holds the config and the index: DECK_APP_DATA, or --data.
 The vault is DECK_VAULT, or --vault.`;
@@ -72,4 +76,9 @@ if (cmd === 'build') {
   for (const a of s.artifacts) console.log(`  ${a.fresh ? 'fresh' : 'STALE'}  ${a.label.padEnd(10)} ${a.reason}`);
   console.log(s.ok ? 'atlas: everything is current' : 'atlas: something is stale');
   process.exit(s.ok ? 0 : 1);
+} else if (cmd === 'serve') {
+  const { serve } = await import('./serve.js');
+  const port = opt('--port') === undefined ? PORT : Number(opt('--port'));
+  if (!Number.isInteger(port) || port < 0 || port > 65535) fail(`not a port: ${opt('--port')}`, 2);
+  serve({ port, config, sweepMaps: !args.includes('--no-map-sweep') });
 } else fail(`unknown command ${cmd}\n${USAGE}`, 2);
