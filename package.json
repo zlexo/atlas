@@ -1,0 +1,13 @@
+{
+  "name": "atlas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An index over a folder of markdown notes, with provenance on every entry and a red banner when anything is stale.",
+  "bin": { "atlas": "./src/cli.js" },
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "scrub": "node scripts/scrub.mjs"
+  }
+}

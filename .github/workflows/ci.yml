@@ -1,0 +1,26 @@
+name: CI
+
+# The tests and the scrub, on public runners. The scrub reads the whole
+# history, so the checkout fetches all of it. The private list never reaches
+# a runner: CI scans for the generic tells, and the private scan runs on the
+# machine that holds the list, before every push.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: node scripts/scrub.mjs
