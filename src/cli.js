@@ -66,8 +66,10 @@ if (cmd === 'build') {
     console.log(`atlas: ${r.maps.length} map(s), ${r.pairs} duplicate pair(s)${dryRun ? ' (dry run, nothing written)' : ''}`);
     for (const m of r.maps) console.log(`  #${m.tag}  ${m.count}`);
     if (r.removed.length) console.log(`  removed ${r.removed.join(', ')}`);
-    if (r.kept.length) console.log(`  kept, no marker (a person's file): ${r.kept.join(', ')}`);
+    if (r.kept.length) console.log(`  kept, not ours (no marker, a link or a folder): ${r.kept.join(', ')}`);
+    for (const e of r.errors) console.error(`  NOT WRITTEN ${e.file}: ${e.error}`);
     console.log(`atlas: ${dryRun ? 'would write' : 'wrote'} ${r.written.length} file(s) in ${r.dir}`);
+    if (r.errors.length) process.exit(1);
   } catch (e) { fail(e.message); }
 } else if (cmd === 'status') {
   const s = status(config);

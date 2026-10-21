@@ -3,7 +3,7 @@
 // and prove a refused rebuild serves the old bundle with the refusal visible.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { request } from 'node:http';
 import { createApp, serve } from '../src/serve.js';
@@ -117,6 +117,22 @@ test('control: fresh maps are not rewritten; with the sweep off the vault is unt
     assert.ok(!sentinelGone(f), 'the sweep was off');
   }, { sweepMaps: false });
   f.cleanup();
+});
+
+test('a map that could not be written shows in the status and the status line', async () => {
+  const f = fixture();
+  buildMaps(f.config());
+  const soil = join(gen(f), 'Soil Map.md');
+  chmodSync(soil, 0o444);
+  writeFileSync(join(f.vault, 'Knowledge', 'Mulch.md'), '# Mulch\n\nEdited.\n');
+  try {
+    await withApp(f, async get => {
+      const maps = await row(get, 'maps');
+      assert.equal(maps.fresh, false);
+      assert.match(maps.lastError, /1 file\(s\) not written: Soil Map\.md/);
+      assert.match((await get('/status-line')).json().status, /^stale: .*maps 1 file\(s\) not written/);
+    });
+  } finally { chmodSync(soil, 0o644); f.cleanup(); }
 });
 
 test('only the app folder and the routes are served', async () => {

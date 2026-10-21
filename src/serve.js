@@ -57,7 +57,12 @@ export function createApp({ config, root = resolve(HERE, '..', 'app'), srcDir = 
     if (mapsStatus(config).fresh) { delete errors.maps; return; }
     if (lastSweep && Date.now() - lastSweep < sweepMs) return;
     lastSweep = Date.now();
-    try { const r = buildMaps(config); delete errors.maps; log(`swept the maps: ${r.written.length} written`); }
+    try {
+      const r = buildMaps(config);
+      if (r.errors.length) errors.maps = `${r.errors.length} file(s) not written: ${r.errors.map(e => `${e.file} (${e.error})`).join('; ')}`;
+      else delete errors.maps;
+      log(`swept the maps: ${r.written.length} written${r.errors.length ? `, ${errors.maps}` : ''}`);
+    }
     catch (e) { errors.maps = e.message; log(`map sweep FAILED: ${e.message}`); }
   }
 
