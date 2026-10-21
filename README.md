@@ -46,8 +46,9 @@ page says so in red.
 
 ## Install from Deck
 
-Atlas is a Deck App. Open Deck's **Apps** page and install **Atlas**. Its
-manifest (`deck.json`) asks Deck for two things:
+Atlas is a Deck App. On Deck's **Apps** page, type `zlexo` in the owner box
+and press **Watch** (a new Deck watches no accounts), then install **Atlas**.
+Its manifest (`deck.json`) asks Deck for two things:
 
 - `vault: true`: Deck passes the vault it manages as `DECK_VAULT`, and lists
   Atlas on the Vault page with its status line ("index current, 12 notes,
@@ -71,8 +72,9 @@ node src/cli.js add ~/code/some-repo --data ~/.local/share/atlas      # index it
 ```
 
 `--vault` and `--data` win over `DECK_VAULT` and `DECK_APP_DATA`. `serve`
-listens on `127.0.0.1:4317` by default and takes `--port` and `--no-map-sweep` (leave the vault untouched; the status
-still says when the maps are out of date).
+listens on `127.0.0.1:4317` by default and takes `--port` and
+`--no-map-sweep` (leave the vault untouched; the status still says when the
+maps are out of date).
 
 ## Where it reads and writes
 
