@@ -1,0 +1,12 @@
+# Atlas keeps its config and its bundle in its data folder (DECK_APP_DATA or
+# --data), never in this repo. These lines catch a data folder or a bundle
+# that lands here by mistake.
+data/
+.atlas-data/
+bundle.json
+
+# strings the scrub refuses (scripts/scrub.mjs); never committed
+private-strings.local.txt
+
+node_modules
+.DS_Store
