@@ -109,3 +109,117 @@ test('maps status: fresh after a run, stale after an edit; a dry run writes noth
     assert.equal(status(f.config()).ok, false);
   } finally { f.cleanup(); }
 });
+
+// ------------------------------------------------------- tags as file names
+
+import { chmodSync, lstatSync, readlinkSync, rmSync } from 'node:fs';
+import { mapFile, mapFiles, writeMaps } from '../src/moc.js';
+import { normalizeTags, findDuplicates } from '../src/corpus.js';
+
+const sentinelGone = f => !existsSync(join(gen(f), 'Sentinel Map.md'));
+const tagged = (f, tags, n = 3) => { for (let i = 0; i < n; i++)
+  writeFileSync(join(f.vault, 'Knowledge', `Tagged ${tags.join(' ').replace(/[^a-z0-9]/gi, '')} ${i}.md`),
+    `---\ntags: [${tags.join(', ')}]\n---\n# Tagged ${i}\n\nA note.\n`); };
+
+test('tags: strings, no leading #, trimmed, no empties, each once', () => {
+  assert.deepEqual(normalizeTags([2026, '#herbs', ' herbs ', '', '  ', 'a:b', '##x']), ['2026', 'herbs', 'a:b', 'x']);
+  assert.deepEqual(normalizeTags(7), ['7']);
+  assert.deepEqual(normalizeTags(''), []);
+  assert.deepEqual(normalizeTags(undefined), []);
+});
+
+test('map names are file names, never paths', () => {
+  assert.equal(mapFile('project/active'), 'Project - Active Map.md');
+  assert.equal(mapFile('../../x'), 'X Map.md');
+  assert.equal(mapFile('a:b'), 'A B Map.md');
+  assert.equal(mapFile('2026'), '2026 Map.md');
+  assert.equal(mapFile('.hidden'), 'Hidden Map.md');
+  assert.equal(mapFile('a\\b*?"<>|c' + String.fromCharCode(9) + 'd'), 'A B C D Map.md');
+  assert.equal(mapFile('..'), 'Tag Map.md');
+  const names = [...mapFiles(['x', '../../x', 'X', 'duplicates']).values()];
+  assert.deepEqual(names, ['X Map.md', 'X 2 Map.md', 'X 3 Map.md', 'Duplicates Map.md']);
+});
+
+test('numeric, nested, traversal, #-prefixed, empty and colon tags all map, inside the folder only', () => {
+  const f = fixture();
+  try {
+    tagged(f, ['2026']); tagged(f, ['project/active']); tagged(f, ['../../x']);
+    tagged(f, ['#herbs'], 1); tagged(f, ['""'], 1); tagged(f, ['a:b']);
+    mkdirSync(gen(f), { recursive: true });
+    writeFileSync(join(gen(f), 'Sentinel Map.md'), `${MARKER}\nno tag makes this\n`);
+    const before = snapshot(f.dir, gen(f));
+    const r = buildMaps(f.config());
+    assert.deepEqual(snapshot(f.dir, gen(f)), before, 'a file outside Maps/Generated changed');
+    assert.deepEqual(r.errors, []);
+    for (const name of ['2026 Map.md', 'Project - Active Map.md', 'X Map.md', 'A B Map.md', 'Herbs Map.md', 'Duplicates.md', 'Generated Maps.md'])
+      assert.ok(readdirSync(gen(f)).includes(name), `${name} missing from ${readdirSync(gen(f)).join(', ')}`);
+    assert.match(readFileSync(join(gen(f), 'Herbs Map.md'), 'utf8'), /4 of 26 vault notes carry `#herbs`/, '#herbs is herbs');
+    assert.match(readFileSync(join(gen(f), 'Generated Maps.md'), 'utf8'), /\[\[Project - Active Map\]\]/);
+    assert.ok(sentinelGone(f), 'control: the run swept the folder');
+  } finally { f.cleanup(); }
+});
+
+test('the last guard: a name that is a path is skipped and reported, the rest are written', () => {
+  const f = fixture();
+  try {
+    tagged(f, ['../../escape']);
+    const corpus = buildCorpus(f.config());
+    const raw = tags => new Map(tags.map(t => [t, `${t}.md`])); // no sanitizing
+    const r = writeMaps({ entries: corpus.entries, duplicates: findDuplicates(corpus.entries) }, f.vault,
+      { stamp: 's', nearDuplicate: { threshold: 0.82, minWords: 120 }, namer: raw });
+    assert.deepEqual(r.errors.map(e => e.file), ['../../escape.md']);
+    assert.ok(!existsSync(join(f.vault, 'escape.md')) && !existsSync(join(f.dir, 'escape.md')));
+    assert.ok(r.written.includes('soil.md') && r.written.includes('Duplicates.md') && r.written.includes('Generated Maps.md'));
+  } finally { f.cleanup(); }
+});
+
+test('a file that cannot be written is reported in the result and the status; the others are written', () => {
+  const f = fixture();
+  const soil = join(gen(f), 'Soil Map.md');
+  try {
+    buildMaps(f.config());
+    chmodSync(soil, 0o444);
+    writeFileSync(join(f.vault, 'Knowledge', 'Basil.md'), '---\ntags: [herbs]\n---\n# Basil\n\nChanged.\n');
+    const r = buildMaps(f.config());
+    assert.deepEqual(r.errors.map(e => e.file), ['Soil Map.md']);
+    assert.ok(r.written.includes('Herbs Map.md') && r.written.includes('Duplicates.md') && r.written.includes('Generated Maps.md'));
+    const front = readFileSync(join(gen(f), 'Generated Maps.md'), 'utf8');
+    assert.match(front, /^incomplete: 1$/m);
+    assert.doesNotMatch(front, /built-from/, 'a half-written set is never stamped current');
+    const s = mapsStatus(f.config());
+    assert.equal(s.fresh, false);
+    assert.match(s.reason, /1 file\(s\) could not be written/);
+  } finally { try { chmodSync(soil, 0o644); } catch {} f.cleanup(); }
+});
+
+test('a Maps folder that links out of the vault: refused before anything is created there', () => {
+  const f = fixture();
+  try {
+    const outside = join(f.dir, 'elsewhere');
+    mkdirSync(outside);
+    symlinkSync(outside, join(f.vault, 'Maps'));
+    assert.throws(() => buildMaps(f.config()), /outside the vault/);
+    assert.deepEqual(readdirSync(outside), [], 'Generated was created outside the vault');
+    rmSync(join(f.vault, 'Maps'));
+    symlinkSync(join(f.dir, 'nowhere'), join(f.vault, 'Maps'));
+    assert.throws(() => buildMaps(f.config()), /broken link/);
+    assert.ok(!existsSync(join(f.dir, 'nowhere')));
+  } finally { f.cleanup(); }
+});
+
+test('a symlink at a map\'s name is a person\'s: never written through, never removed', () => {
+  const f = fixture();
+  try {
+    const target = join(f.dir, 'target.md'), old = join(f.dir, 'old.md');
+    writeFileSync(target, `${MARKER}\nnot in the vault\n`);
+    writeFileSync(old, `${MARKER}\nnot in the vault either\n`);
+    mkdirSync(gen(f), { recursive: true });
+    symlinkSync(target, join(gen(f), 'Herbs Map.md'));
+    symlinkSync(old, join(gen(f), 'Old Map.md'));
+    const r = buildMaps(f.config());
+    assert.ok(r.kept.includes('Herbs Map.md'));
+    assert.equal(readFileSync(target, 'utf8'), `${MARKER}\nnot in the vault\n`, 'written through the link');
+    assert.ok(lstatSync(join(gen(f), 'Herbs Map.md')).isSymbolicLink());
+    assert.equal(readlinkSync(join(gen(f), 'Old Map.md')), old, 'a link with a stale map name was removed');
+  } finally { f.cleanup(); }
+});
