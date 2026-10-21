@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { sourceFiles, relPath } from './corpus.js';
 import { bundleFile } from './config.js';
+import { join } from 'node:path';
+import { GENERATED, FRONT } from './moc.js';
 
 /** Fingerprint of every file the sources name: per source and overall. */
 export function inputFingerprint(config) {
@@ -44,9 +46,26 @@ export function bundleStatus(config, now = inputFingerprint(config)) {
   };
 }
 
+/** The maps carry the fingerprint they were built from in their front door. */
+export function mapsStatus(config, now = inputFingerprint(config)) {
+  const base = { id: 'maps', label: 'Maps' };
+  let text = null;
+  try { text = readFileSync(join(config.vault, GENERATED, FRONT), 'utf8'); } catch {}
+  const stamp = text?.match(/^built-from:\s*(\S+)/m)?.[1] ?? null;
+  const pairs = Number(text?.match(/\[\[Duplicates\]\] · (\d+)/)?.[1] ?? 0);
+  if (!text) return { ...base, fresh: false, reason: 'not generated yet' };
+  const incomplete = text.match(/^incomplete:\s*(\d+)/m)?.[1];
+  if (incomplete) return { ...base, fresh: false, reason: `${incomplete} file(s) could not be written on the last run: see ${FRONT}` };
+  if (!stamp) return { ...base, fresh: false, reason: 'the front door carries no stamp' };
+  return { ...base, fresh: stamp === now.all, pairs,
+    reason: stamp === now.all ? `notes unchanged since the maps were made, ${pairs} duplicate ${pairs === 1 ? 'pair' : 'pairs'}`
+      : 'notes changed since the maps were made' };
+}
+
 /** Every artifact against its input. `errors` holds the last failed rebuild per artifact id. */
 export function status(config, { errors = {} } = {}) {
-  const artifacts = [bundleStatus(config)]
+  const now = inputFingerprint(config);
+  const artifacts = [bundleStatus(config, now), ...(config.vault ? [mapsStatus(config, now)] : [])]
     .map(a => errors[a.id] ? { ...a, fresh: false, lastError: errors[a.id] } : a);
   return { at: new Date().toISOString(), ok: artifacts.every(a => a.fresh), artifacts };
 }

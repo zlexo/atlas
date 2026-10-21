@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { locate, loadConfig, addFolder, bundleFile } from './config.js';
-import { buildBundle, EmptySource } from './artifacts.js';
+import { buildBundle, buildMaps, EmptySource } from './artifacts.js';
 import { status } from './freshness.js';
 
 const args = process.argv.slice(2);
@@ -15,6 +15,7 @@ const USAGE = `usage: atlas <command> [--data <dir>] [--vault <dir>]
 
   build             index the vault and the added folders into the data folder
   status            the index against its inputs; exit 1 when anything is stale
+  moc [--dry-run]   maps by tag and the duplicates report, into <vault>/Maps/Generated
   add <folder>      index a folder too (its README.md and docs/)
 
 The data folder holds the config and the index: DECK_APP_DATA, or --data.
@@ -54,6 +55,18 @@ if (cmd === 'build') {
     }
     fail(e.message);
   }
+} else if (cmd === 'moc') {
+  const dryRun = args.includes('--dry-run');
+  try {
+    const r = buildMaps(config, { dryRun });
+    console.log(`atlas: ${r.maps.length} map(s), ${r.pairs} duplicate pair(s)${dryRun ? ' (dry run, nothing written)' : ''}`);
+    for (const m of r.maps) console.log(`  #${m.tag}  ${m.count}`);
+    if (r.removed.length) console.log(`  removed ${r.removed.join(', ')}`);
+    if (r.kept.length) console.log(`  kept, not ours (no marker, a link or a folder): ${r.kept.join(', ')}`);
+    for (const e of r.errors) console.error(`  NOT WRITTEN ${e.file}: ${e.error}`);
+    console.log(`atlas: ${dryRun ? 'would write' : 'wrote'} ${r.written.length} file(s) in ${r.dir}`);
+    if (r.errors.length) process.exit(1);
+  } catch (e) { fail(e.message); }
 } else if (cmd === 'status') {
   const s = status(config);
   for (const a of s.artifacts) console.log(`  ${a.fresh ? 'fresh' : 'STALE'}  ${a.label.padEnd(10)} ${a.reason}`);

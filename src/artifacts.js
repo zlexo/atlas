@@ -2,6 +2,7 @@
 // two can never drift apart.
 import { writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { buildCorpus, findDuplicates } from './corpus.js';
+import { writeMaps } from './moc.js';
 import { inputFingerprint } from './freshness.js';
 import { bundleFile } from './config.js';
 
@@ -37,4 +38,18 @@ export function buildBundle(config) {
   writeFileSync(out + '.tmp', JSON.stringify(bundle));
   renameSync(out + '.tmp', out);
   return bundle;
+}
+
+/**
+ * Maps by tag and the duplicates report, into <vault>/Maps/Generated, from a
+ * fresh read of every source. The front door is stamped with the inputs'
+ * fingerprint, so the status can tell whether the maps describe the notes now.
+ */
+export function buildMaps(config, { dryRun = false } = {}) {
+  if (!config.vault) throw new Error('no vault: maps are written into one (DECK_VAULT or --vault)');
+  const stamp = inputFingerprint(config).all;
+  const corpus = buildCorpus(config);
+  if (corpus.empty.length) throw new EmptySource(corpus.empty);
+  const duplicates = findDuplicates(corpus.entries, config.nearDuplicate);
+  return { stamp, ...writeMaps({ entries: corpus.entries, duplicates }, config.vault, { stamp, nearDuplicate: config.nearDuplicate, dryRun }) };
 }

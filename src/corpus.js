@@ -78,6 +78,16 @@ export function headings(body) {
   return out;
 }
 
+/**
+ * Tags from frontmatter `tags:` only, as strings, without a leading `#`,
+ * trimmed, empties dropped, each once. They become file names later, so they
+ * are cleaned here once rather than trusted everywhere.
+ */
+export function normalizeTags(raw) {
+  const list = Array.isArray(raw) ? raw : (raw == null || raw === '' ? [] : [raw]);
+  return [...new Set(list.map(t => String(t).trim().replace(/^#+/, '').trim()).filter(Boolean))];
+}
+
 /** `[[Target]]`, `[[Target|alias]]` and `[[Target#part]]`, deduped, in order. */
 export const wikilinks = body =>
   [...new Set([...body.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map(m => m[1].trim()))];
@@ -135,7 +145,7 @@ export function buildCorpus(config) {
         sourceLabel: src.label,
         provenance: { dir: src.dir, path: rel, commit: commits[src.id] },
         frontmatter: data,
-        tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
+        tags: normalizeTags(data.tags),
         headings: hs,
         wikilinks: wikilinks(body),
         fileLinks: fileLinks(body),

@@ -67,7 +67,7 @@ test('corpus: projects and knowledge from the vault, README and docs from a fold
   try {
     const { entries } = buildCorpus(f.config());
     const ids = entries.map(e => e.id);
-    assert.equal(entries.filter(e => e.source === 'vault').length, 11);
+    assert.equal(entries.filter(e => e.source === 'vault').length, 12);
     assert.ok(ids.includes('vault:Projects/Raised Beds.md'));
     assert.ok(ids.includes('seed-catalog:README.md') && ids.includes('seed-catalog:docs/sowing.md'));
     assert.ok(!ids.some(i => i.includes('Daily/')), 'dailies are not indexed');
