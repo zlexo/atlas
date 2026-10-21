@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { buildBundle, EmptySource } from '../src/artifacts.js';
+import { buildBundle, buildMaps, EmptySource } from '../src/artifacts.js';
 import { bundleStatus, status } from '../src/freshness.js';
 import { locate, loadConfig, addFolder, bundleFile, configFile } from '../src/config.js';
 import { fixture } from './fixture.js';
@@ -60,7 +60,7 @@ test('build: the bundle lands in the data folder, and only there', () => {
     assert.deepEqual(readdirSync(f.data).sort(), ['atlas.config.json', 'bundle.json']);
     assert.deepEqual(readdirSync(f.vault, { recursive: true }).sort(), before, 'the vault is not written');
     assert.deepEqual(b.sources.map(s => s.id), ['vault', 'seed-catalog']);
-    assert.equal(b.entries.length, 14);
+    assert.equal(b.entries.length, 15);
   } finally { f.cleanup(); }
 });
 
@@ -72,6 +72,7 @@ test('status: a bundle without a fingerprint, a missing bundle and a new folder 
     writeFileSync(bundleFile(f.config()), JSON.stringify({ version: 1, entries: [] }));
     assert.match(bundleStatus(f.config()).reason, /without a fingerprint/);
     buildBundle(f.config());
+    buildMaps(f.config());
     assert.equal(status(f.config()).ok, true);
     addFolder(f.data, f.catalog);
     const s = status(f.config());
@@ -109,7 +110,9 @@ test('cli: build then status exits 0; an edit makes status exit 1; no data folde
   try {
     const b = run('build');
     assert.equal(b.status, 0, b.stderr);
-    assert.match(b.stdout, /14 notes/);
+    assert.match(b.stdout, /15 notes/);
+    assert.equal(run('status').status, 1, 'no maps yet');
+    assert.equal(run('moc').status, 0);
     assert.equal(run('status').status, 0);
     writeFileSync(join(f.vault, 'Knowledge/Mulch.md'), 'changed\n');
     const s = run('status');
